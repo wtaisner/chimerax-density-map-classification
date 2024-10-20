@@ -140,7 +140,7 @@ def get_sphere_volume(radius):
     Returns:
         float: The volume of the sphere.
     """
-    return 4.0 / 3.0 * 3.14 * (radius**3)
+    return 4.0 / 3.0 * 3.14 * (radius ** 3)
 
 
 def get_blob_volume(voxel_count, voxel_size):
@@ -154,7 +154,7 @@ def get_blob_volume(voxel_count, voxel_size):
     Returns:
         float: The volume of the blob in cubic angstroms.
     """
-    return voxel_count * (voxel_size**3)
+    return voxel_count * (voxel_size ** 3)
 
 
 MAP_VALUE_MAPPER = {
@@ -193,18 +193,18 @@ MAP_VALUE_MAPPER = {
 
 
 def extract_ligand(
-    density_threshold,
-    min_blob_radius,
-    atom_radius,
-    target_voxel_size,
-    resolution,
-    res_cov_threshold,
-    blob_cov_threshold,
-    padding,
-    unit_cell,
-    map_array,
-    origin,
-    ligand_coords,
+        density_threshold,
+        min_blob_radius,
+        atom_radius,
+        target_voxel_size,
+        resolution,
+        res_cov_threshold,
+        blob_cov_threshold,
+        padding,
+        unit_cell,
+        map_array,
+        origin,
+        ligand_coords,
 ):
     """
     Extracts a ligand blob from a given map array and saves it as a compressed numpy file.
@@ -228,24 +228,23 @@ def extract_ligand(
     """
     mask = get_ligand_mask(atom_radius, unit_cell, map_array, origin, ligand_coords)
     min_x, max_x, min_y, max_y, min_z, max_z = get_mask_bounding_box(mask)
+
     blob = map_array * mask
     blob = blob[
-        min_x - padding : max_x + 1 + padding,
-        min_y - padding : max_y + 1 + padding,
-        min_z - padding : max_z + 1 + padding,
-    ]
-
+           min_x - padding: max_x + 1 + padding,
+           min_y - padding: max_y + 1 + padding,
+           min_z - padding: max_z + 1 + padding,
+           ]
     # Resampling the map to target voxel size
     blob = resample_blob(blob, target_voxel_size, unit_cell, map_array)
     blob[blob < density_threshold] = 0
     blob_volume = get_blob_volume(np.sum(blob != 0), target_voxel_size)
-
     if blob_volume >= get_sphere_volume(min_blob_radius):
         fragment_mask = mask[
-            min_x - padding : max_x + 1 + padding,
-            min_y - padding : max_y + 1 + padding,
-            min_z - padding : max_z + 1 + padding,
-        ]
+                        min_x - padding: max_x + 1 + padding,
+                        min_y - padding: max_y + 1 + padding,
+                        min_z - padding: max_z + 1 + padding,
+                        ]
         fragment_mask = resample_blob(
             fragment_mask, target_voxel_size, unit_cell, map_array
         )
@@ -258,19 +257,12 @@ def extract_ligand(
             # rescaling density values
             blob = blob * (MAP_VALUE_MAPPER[resolution] / blob[blob > 0].min())
 
-            # print(
-            #     f"Dimensions: {blob.shape}, Blob min value: {blob[blob > 0].min():.3f}, "
-            #     + f"Blob max value: {blob.max():.3f}, Non-zero: {np.sum(blob != 0):,}, "
-            #     + f"Zero: {np.sum(blob == 0):,}, NA count: {np.sum(np.isnan(blob)):,}, "
-            #     + f"Blob volume: {blob_volume:.3f}, Model coverage: {res_cov_frac:.2f}, "
-            #     + f"Blob coverage: {blob_cov_frac:.2f}"
-            # )
             return blob
         else:
-            # print(
-            #     f"Model coverage: {res_cov_frac:.2f}, "
-            #     + f"Blob coverage: {blob_cov_frac:.2f}. Not enough coverage."
-            # )
+            print(
+                f"Model coverage: {res_cov_frac:.2f}, "
+                + f"Blob coverage: {blob_cov_frac:.2f}. Not enough coverage."
+            )
             return None
     else:
         print(f"Not enough density.")
@@ -279,10 +271,8 @@ def extract_ligand(
 
 def read_map(map_model):
     file_header = map_model.data.file_header
-
     map_array = np.asarray(map_model.full_matrix(), dtype="float")
     # chimerax reads the ccp4 file in 'right' order, so we don't need to change it
-
     unit_cell = np.zeros(6, dtype="float")
     cell = np.array(
         [(file_header["xlen"], file_header["ylen"], file_header["zlen"])],
@@ -337,16 +327,16 @@ def extract_ligand_coords(cif_model, residue):
 
 
 def cut_ligand(
-    map_model,
-    cif_model,
-    residue,
-    density_std_threshold=2.8,
-    min_blob_radius=0.8,
-    atom_radius=1.5,
-    target_voxel_size=0.2,
-    res_cov_threshold=0.02,
-    blob_cov_threshold=0.01,
-    padding=2,
+        map_model,
+        cif_model,
+        residue,
+        density_std_threshold=2.8,
+        min_blob_radius=0.8,
+        atom_radius=1.5,
+        target_voxel_size=0.2,
+        res_cov_threshold=0.02,
+        blob_cov_threshold=0.01,
+        padding=2,
 ):
     ligand_coords, resolution, num_particles = extract_ligand_coords(cif_model, residue)
 
@@ -358,7 +348,7 @@ def cut_ligand(
     map_median = np.median(map_array)
     map_std = np.std(map_array)
     value_mask = (map_array < map_median - 0.5 * map_std) | (
-        map_array > map_median + 0.5 * map_std
+            map_array > map_median + 0.5 * map_std
     )
 
     quantile_threshold = norm.cdf(density_std_threshold)
@@ -380,3 +370,73 @@ def cut_ligand(
     )
 
     return blob
+
+
+def cut_and_extract_ligand(
+        map_model,
+        mask_model,
+        density_std_threshold=2.8,
+        min_blob_radius=0.8,
+        target_voxel_size=0.2,
+        res_cov_threshold=0.02,
+        blob_cov_threshold=0.01,
+        padding=2,
+):
+    """
+    Adaptation of `cut_ligand` and `extract_ligand` functions to fit needs of `blob recognize` command.
+
+    :param map_model: full density map
+    :param mask_model: mask corresponding to desired part of density (blob)
+    :param density_std_threshold:
+    :param min_blob_radius:
+    :param target_voxel_size:
+    :param res_cov_threshold:
+    :param blob_cov_threshold:
+    :param padding:
+    :return:
+    """
+
+    unit_cell, map_array, origin = read_map(map_model)
+    _, mask, _ = read_map(mask_model)
+
+    map_median = np.median(map_array)
+    map_std = np.std(map_array)
+    value_mask = (map_array < map_median - 0.5 * map_std) | (
+            map_array > map_median + 0.5 * map_std
+    )
+
+    quantile_threshold = norm.cdf(density_std_threshold)
+    density_threshold = np.quantile(map_array[value_mask], quantile_threshold)
+    min_x, max_x, min_y, max_y, min_z, max_z = get_mask_bounding_box(mask)
+
+    blob = map_array * mask
+    blob = blob[
+           min_x - padding: max_x + 1 + padding,
+           min_y - padding: max_y + 1 + padding,
+           min_z - padding: max_z + 1 + padding,
+           ]
+    # Resampling the map to target voxel size
+    blob = resample_blob(blob, target_voxel_size, unit_cell, map_array)
+    blob[blob < density_threshold] = 0
+    blob_volume = get_blob_volume(np.sum(blob != 0), target_voxel_size)
+    if blob_volume >= get_sphere_volume(min_blob_radius):
+        fragment_mask = mask[
+                        min_x - padding: max_x + 1 + padding,
+                        min_y - padding: max_y + 1 + padding,
+                        min_z - padding: max_z + 1 + padding,
+                        ]
+        fragment_mask = resample_blob(
+            fragment_mask, target_voxel_size, unit_cell, map_array
+        )
+        res_voxels = fragment_mask > 0
+        blob_voxels = blob > 0
+        res_cov_frac = np.sum(res_voxels & blob_voxels) / np.sum(res_voxels)
+        blob_cov_frac = np.sum(res_voxels & blob_voxels) / np.sum(blob_voxels)
+
+        if res_cov_frac >= res_cov_threshold and blob_cov_frac >= blob_cov_threshold:
+            return blob
+        else:
+            return None
+    else:
+        print(f"Not enough density.")
+        return None
